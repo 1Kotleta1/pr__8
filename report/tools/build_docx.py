@@ -41,6 +41,25 @@ h = doc.add_paragraph('Практическая работа №8 Нагрузо
                       style='Глава')
 h.paragraph_format.page_break_before = True
 
+# закладка на заголовке и строка оглавления (номер страницы обновится в Word по F9)
+import copy, re
+from docx.oxml.ns import qn
+from docx.oxml import OxmlElement
+BM = '_Toc241748336'
+bs = OxmlElement('w:bookmarkStart'); bs.set(qn('w:id'), '908'); bs.set(qn('w:name'), BM)
+be = OxmlElement('w:bookmarkEnd'); be.set(qn('w:id'), '908')
+h._p.insert(1, bs); h._p.append(be)
+toc = [p for p in doc.paragraphs if p.style.name == 'toc 1']
+if not any('№8' in p.text for p in toc):
+    new = copy.deepcopy(toc[-1]._p)
+    toc[-1]._p.addnext(new)
+    xml_t = [t for t in new.iter(qn('w:t'))]
+    xml_t[0].text = h.text
+    xml_t[-1].text = '61'
+    new.find(qn('w:hyperlink')).set(qn('w:anchor'), BM)
+    for it in new.iter(qn('w:instrText')):
+        it.text = re.sub(r'_Toc\d+', BM, it.text)
+
 para('изучить проведение нагрузочного тестирования веб-приложения и API с помощью фреймворка Locust: '
      'написать сценарии на основе TaskSet и SequentialTaskSet, сгенерировать адекватные тестовые данные '
      'библиотекой Faker, задать соотношение частоты GET- и POST-запросов, запустить тест и проанализировать '
@@ -66,10 +85,11 @@ for line in ['GET / – веб-страница приложения;',
              'DELETE /api/history/{id} – удаление расчёта;',
              'GET /api/stats – статистика (число расчётов, среднее время, число авторов).']:
     para('– ' + line)
-image('27_code_api.png', 'обработчик POST /api/multiply: деление строк между процессами как в ПР №5')
+image('26_vs_pr5.png', 'модуль pr5/matrix_mp.py с функцией multiply_part из ПР №5 в VS Code')
+image('25_vs_api.png', 'обработчик POST /api/multiply в app/main.py: деление строк между процессами как в ПР №5')
 para('Если количество столбцов первой матрицы не равно количеству строк второй, API возвращает код 400 '
      'с тем же текстом ошибки, что и консольная программа ПР №5.')
-image('20_term_server.png', 'запуск веб-API командой uvicorn и журнал обработанных запросов')
+image('27_term_server.png', 'терминал с запущенным веб-API (uvicorn): журнал запросов во время нагрузочного теста')
 image('01_app.png', 'веб-страница приложения: новый расчёт и история расчётов')
 image('02_swagger.png', 'список запросов API в документации Swagger (/docs)')
 
@@ -101,7 +121,7 @@ para('Тестовые данные создаются случайно при �
      'названия месяца и номера, автор – ФИО (fake.name()), в сценарии аналитика добавляется город '
      '(fake.city()). Размеры матриц согласованы (столбцы A = строки B), элементы – целые числа от 0 до 9, '
      'как в ПР №5, количество процессов – от 1 до числа ядер процессора.')
-image('23_code_data.png', 'импорт библиотек и функции генерации тестовых данных Faker')
+image('20_vs_data.png', 'locustfile.py в VS Code: импорт библиотек и генерация тестовых данных Faker')
 
 # 5. ViewerTasks
 para('5. Класс ViewerTasks (TaskSet).')
@@ -111,7 +131,7 @@ para('Класс содержит 6 задач: открытие главной 
      'а POST-задачи – 1, поэтому в этом классе GET-запросы выполняются в 20 раз чаще, чем POST. '
      'Задача view_calculation открывает только расчёты, которые создал этот же пользователь, '
      'поэтому запрос не попадает на расчёт, удалённый аналитиком.')
-image('24_code_taskset.png', 'класс ViewerTasks на основе TaskSet с весами задач')
+image('21_vs_taskset.png', 'класс ViewerTasks на основе TaskSet с весами задач')
 
 # 6. AnalystScenario
 para('6. Класс AnalystScenario (SequentialTaskSet).')
@@ -120,7 +140,7 @@ para('Сценарий состоит из 10 последовательных �
      'несогласованными размерами – ожидается код 400 (POST), переименование (PUT), проверка '
      'нового названия (GET), просмотр истории (GET), статистика (GET) и удаление расчёта (DELETE). '
      'Метод on_stop удаляет расчёт, если тест остановлен посреди сценария.')
-image('25_code_sequential.png', 'класс AnalystScenario на основе SequentialTaskSet')
+image('22_vs_sequential.png', 'класс AnalystScenario на основе SequentialTaskSet')
 
 # 7. Пользователи и конфиг
 para('7. Классы пользователей и параметры запуска.')
@@ -130,13 +150,14 @@ para('ViewerUser (weight = 4) выполняет ViewerTasks, AnalystUser (weigh
      'около 8 : 1, что удовлетворяет требованию «GET минимум в 5 раз чаще POST». В locust.conf заданы '
      'адрес приложения, 50 пользователей, скорость появления 5 пользователей в секунду, длительность '
      'теста 3 минуты и адрес веб-интерфейса Locust.')
-image('26_code_users.png', 'классы пользователей и файл locust.conf')
+image('23_vs_users.png', 'окончание сценария AnalystScenario и классы пользователей ViewerUser и AnalystUser')
+image('24_vs_conf.png', 'файл locust.conf с параметрами запуска')
 
 # 8. Запуск
 para('8. Запуск нагрузочного теста.')
 para('Веб-API запущено на порту 5050, Locust запущен из каталога load_tests с параметрами --csv '
      '../results/locust --csv-full-history для сохранения статистики в CSV-файлы.')
-image('21_term_locust.png', 'запуск Locust и появление 50 пользователей (40 ViewerUser, 10 AnalystUser)')
+image('28_term_locust.png', 'запуск Locust в терминале и появление 50 пользователей (40 ViewerUser, 10 AnalystUser)')
 image('04_locust_advanced.png', 'форма запуска теста: 50 пользователей, 5 пользователей/с, 180 секунд')
 image('05_running_30s.png', 'статистика через 30 секунд после запуска теста')
 image('12_ratio.png', 'вкладка Current Ratio: доли классов пользователей и задач', width=13)
@@ -173,7 +194,7 @@ para('GET-запросов выполнено 3706, POST-запросов – 46
 para('10. Git-репозиторий.')
 para('Проект (веб-API на базе ПР №5, сценарии Locust, результаты прогона и скриншоты) сохранён '
      'в Git-репозитории locust_pr8.')
-image('22_term_git.png', 'история коммитов Git-репозитория проекта')
+image('29_term_git.png', 'история коммитов и состояние Git-репозитория проекта')
 
 para('в ходе практической работы проект с другой дисциплины (ПР №5 «Умножение двух матриц '
      'с помощью процессов») опубликован как веб-API на FastAPI с сохранением алгоритма деления строк '
