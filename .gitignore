@@ -4,3 +4,4 @@ __pycache__/
 report/tmp/
 results/uvicorn.log
 results/locust_console.log
+results/locust_*
